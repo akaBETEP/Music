@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Музыкальный портал</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    .track { border: 1px solid #ddd; border-radius: 10px; padding: 1rem; margin: .75rem 0; }
+    .track-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .track-info strong { display: block; }
+    .track-info span { color: #666; font-size: .9em; }
+    .track-buy { text-align: right; white-space: nowrap; }
+    .track-buy .price { font-weight: 600; margin-bottom: .35rem; }
+    .track-buy button { padding: .5rem 1rem; cursor: pointer; }
+    .player { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; }
+    .play-btn {
+      width: 42px; height: 42px; border-radius: 50%; border: none;
+      background: #111; color: #fff; font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .play-btn:hover { background: #333; }
+    .progress {
+      flex: 1; height: 6px; background: #e5e5e5; border-radius: 3px;
+      position: relative; cursor: pointer; overflow: hidden;
+    }
+    .progress-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #111; }
+    .time { font-variant-numeric: tabular-nums; font-size: .85em; color: #555; min-width: 90px; text-align: right; }
+    .preview-tag { font-size: .75em; color: #888; }
+
+    dialog { border: none; border-radius: 12px; padding: 1.5rem; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+    dialog input { width: 100%; padding: .5rem; margin: .5rem 0 1rem; }
+    dialog button { margin-right: .5rem; padding: .5rem 1rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🎵 Каталог треков</h1>
+  <div id="catalog"></div>
+
+  <dialog id="orderDialog">
+    <form id="orderForm">
+      <h2>Покупка трека</h2>
+      <p>Трек: <strong id="dTrack"></strong></p>
+      <p>Цена: <strong id="dPrice"></strong> ₽</p>
+      <label>Email для получения файла:
+        <input type="email" id="buyerEmail" required placeholder="you@example.com">
+      </label>
+      <p style="font-size:.9em;color:#666">После оплаты трек будет отправлен на этот адрес вручную в течение 24 часов.</p>
+      <button type="submit">Перейти к оплате</button>
+      <button type="button" id="dCancel">Отмена</button>
+    </form>
+  </dialog>
+
+<script>
+  // ==== НАСТРОЙКИ ====
+  const RECEIVER_WALLET = '410011234567890';
+  const FORMSPREE_URL   = 'https://formspree.io/f/xxxxxxx';
+
+  const TRACKS = [
+    { id: 'track_001', title: 'Название трека 1', artist: 'Исполнитель', price: 99,  preview: 'previews/track_001.mp3' },
+    { id: 'track_002', title: 'Название трека 2', artist: 'Исполнитель', price: 149, preview: 'previews/track_002.mp3' },
+    { id: 'track_003', title: 'Название трека 3', artist: 'Исполнитель', price: 199, preview: 'previews/track_003.mp3' }
+  ];
+
+  // ==== Аудио ====
+  const audio = new Audio();      // единый аудиоэлемент
+  let currentBtn = null;          // кнопка текущего трека
+  let currentFill = null;         // прогресс-бар текущего трека
+  let currentTime = null;         // подпись времени текущего трека
+
+  function fmtTime(s) {
+    if (!isFinite(s) || s < 0) s = 0;
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  }
+
+  function resetUI() {
+    if (currentBtn) currentBtn.textContent = '▶';
+    if (currentFill) currentFill.style.width = '0%';
+    if (currentTime) currentTime.textContent = '0:00 / 0:00';
+    currentBtn = currentFill = currentTime = null;
+  }
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration || !currentFill) return;
+    const p = (audio.currentTime / audio.duration) * 100;
+    currentFill.style.width = p + '%';
+    currentTime.textContent = `${fmtTime(audio.currentTime)} / ${fmtTime(audio.duration)}`;
+  });
+
+  audio.addEventListener('ended', () => {
+    if (currentBtn) currentBtn.textContent = '▶';
+    if (currentFill) currentFill.style.width = '0%';
+    if (currentTime) currentTime.textContent = '0:00 / 0:00';
+  });
+
+  audio.addEventListener('error', () => {
+    resetUI();
+    alert('Не удалось загрузить превью. Проверьте, что файл существует по указанному пути.');
+  });
+
+  // ==== Каталог ====
+  const catalog = document.getElementById('catalog');
+  TRACKS.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'track';
+    el.innerHTML = `
+      <div class="track-head">
+        <div class="track-info">
+          <strong>${t.title}</strong>
+          <span>${t.artist}</span>
+        </div>
+        <div class="track-buy">
+          <div class="price">${t.price} ₽</div>
+          <button data-id="${t.id}">Купить</button>
+        </div>
+      </div>
+      <div class="player">
+        <button class="play-btn" aria-label="Прослушать">▶</button>
+        <div class="progress"><div class="progress-fill"></div></div>
+        <div class="time">0:00 / 0:00</div>
+      </div>
+      <div class="preview-tag">🎧 Превью — 45 секунд</div>
+    `;
+
+    const btn     = el.querySelector('.play-btn');
+    const fill    = el.querySelector('.progress-fill');
+    const bar     = el.querySelector('.progress');
+    const time    = el.querySelector('.time');
+    const buyBtn  = el.querySelector('.track-buy button');
+
+    btn.onclick = () => {
+      const sameTrack = audio.src.endsWith(t.preview);
+
+      if (sameTrack && !audio.paused) {
+        audio.pause();
+        btn.textContent = '▶';
+        return;
+      }
+
+      // Если другой трек — сбрасываем предыдущий UI
+      if (!sameTrack) {
+        resetUI();
+        audio.src = t.preview;
+        audio.load();
+      }
+
+      currentBtn = btn;
+      currentFill = fill;
+      currentTime = time;
+
+      audio.play().then(() => { btn.textContent = '❚❚'; })
+                  .catch(() => { btn.textContent = '▶'; });
+    };
+
+    bar.onclick = (e) => {
+      if (!audio.duration) return;
+      const rect = bar.getBoundingClientRect();
+      const p = (e.clientX - rect.left) / rect.width;
+      audio.currentTime = Math.max(0, Math.min(1, p)) * audio.duration;
+    };
+
+    buyBtn.onclick = () => openOrder(t);
+    catalog.appendChild(el);
+  });
+
+  // ==== Диалог покупки ====
+  const dialog = document.getElementById('orderDialog');
+  let current = null;
+
+  function openOrder(track) {
+    current = track;
+    document.getElementById('dTrack').textContent = track.title;
+    document.getElementById('dPrice').textContent = track.price;
+    document.getElementById('buyerEmail').value = '';
+    dialog.showModal();
+  }
+
+  document.getElementById('dCancel').onclick = () => dialog.close();
+
+  document.getElementById('orderForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('buyerEmail').value.trim();
+    if (!email) return;
+
+    const orderId = `${current.id}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+
+    try {
+      const r = await fetch(FORMSPREE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          _subject: `🛒 Новый заказ: ${current.title}`,
+          orderId, buyerEmail: email,
+          trackId: current.id, trackTitle: current.title,
+          trackArtist: current.artist, price: current.price
+        })
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      alert('Не удалось сохранить заказ. Попробуйте ещё раз.');
+      return;
+    }
+
+    localStorage.setItem('lastOrder', JSON.stringify({
+      orderId, trackTitle: current.title, email
+    }));
+
+    const payForm = document.createElement('form');
+    payForm.method = 'POST';
+    payForm.action = 'https://yoomoney.ru/quickpay/confirm';
+    const fields = {
+      receiver: RECEIVER_WALLET,
+      'quickpay-form': 'button',
+      sum: current.price.toFixed(2),
+      label: orderId,
+      successURL: location.origin + location.pathname.replace(/[^/]*$/, '') + 'success.html',
+      targets: `Трек: ${current.title} — ${current.artist}`
+    };
+    for (const [k,v] of Object.entries(fields)) {
+      const inp = document.createElement('input');
+      inp.type='hidden'; inp.name=k; inp.value=v;
+      payForm.appendChild(inp);
+    }
+    document.body.appendChild(payForm);
+    payForm.submit();
+  };
+</script>
+</body>
+</html>
