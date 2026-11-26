@@ -1,0 +1,25 @@
+name: Update tracks list
+on:
+  push:
+    paths: ['previews/**/*.mp3']
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate tracks.json
+        run: |
+          python3 -c "
+          import json, os
+          files = sorted(f for f in os.listdir('previews') if f.lower().endswith('.mp3'))
+          with open('tracks.json', 'w', encoding='utf-8') as fp:
+              json.dump([{'filename': f} for f in files], fp, ensure_ascii=False, indent=2)
+          "
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 Update tracks.json"
+          file_pattern: tracks.json
