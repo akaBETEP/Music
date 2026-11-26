@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Спасибо за заказ</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 560px; margin: 3rem auto; padding: 0 1rem; }
+    .box { background: #f3f7ff; border-radius: 12px; padding: 1.5rem; }
+    code { background: #fff; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>✅ Спасибо за покупку!</h1>
+  <div class="box" id="info" hidden>
+    <p>Ваш трек: <strong id="tTrack"></strong></p>
+    <p>Файл будет отправлен на <strong id="tEmail"></strong> в течение 24 часов после подтверждения оплаты.</p>
+    <p>Номер заказа: <code id="tOrder"></code></p>
+    <p>Если в течение суток трек не пришёл — напишите на <a href="mailto:you@example.com">you@example.com</a>, указав номер заказа.</p>
+  </div>
+  <p id="noInfo" hidden>Заказ не найден. <a href="index.html">Вернуться в каталог</a></p>
+  <p><a href="index.html">← Вернуться в каталог</a></p>
+
+<script>
+  const data = localStorage.getItem('lastOrder');
+  if (data) {
+    const o = JSON.parse(data);
+    document.getElementById('tTrack').textContent = o.trackTitle;
+    document.getElementById('tEmail').textContent = o.email;
+    document.getElementById('tOrder').textContent = o.orderId;
+    document.getElementById('info').hidden = false;
+  } else {
+    document.getElementById('noInfo').hidden = false;
+  }
+</script>
+</body>
+</html>
