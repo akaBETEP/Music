@@ -1,230 +1,554 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Музыкальный портал</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-    .track { border: 1px solid #ddd; border-radius: 10px; padding: 1rem; margin: .75rem 0; }
-    .track-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-    .track-info strong { display: block; }
-    .track-info span { color: #666; font-size: .9em; }
-    .track-buy { text-align: right; white-space: nowrap; }
-    .track-buy .price { font-weight: 600; margin-bottom: .35rem; }
-    .track-buy button { padding: .5rem 1rem; cursor: pointer; }
-    .player { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; }
-    .play-btn {
-      width: 42px; height: 42px; border-radius: 50%; border: none;
-      background: #111; color: #fff; font-size: 1.1rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .play-btn:hover { background: #333; }
-    .progress {
-      flex: 1; height: 6px; background: #e5e5e5; border-radius: 3px;
-      position: relative; cursor: pointer; overflow: hidden;
-    }
-    .progress-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: #111; }
-    .time { font-variant-numeric: tabular-nums; font-size: .85em; color: #555; min-width: 90px; text-align: right; }
-    .preview-tag { font-size: .75em; color: #888; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎵 Музыкальный портал</title>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #15151c;
+  --surface-2: #1e1e28;
+  --text: #f5f5f7;
+  --muted: #8a8a99;
+  --accent: #a855f7;
+  --accent-2: #ec4899;
+  --border: rgba(255,255,255,0.08);
+  --radius: 16px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(168,85,247,0.15), transparent 50%),
+    radial-gradient(circle at 80% 100%, rgba(236,72,153,0.12), transparent 50%);
+  pointer-events: none; z-index: 0;
+}
+.container {
+  max-width: 900px; margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  position: relative; z-index: 1;
+}
+header { margin-bottom: 2.5rem; text-align: center; }
+h1 {
+  margin: 0 0 .5rem;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800; letter-spacing: -.02em;
+  background: linear-gradient(135deg, #fff 0%, #a855f7 100%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+header p { margin: 0; color: var(--muted); font-size: .95rem; }
 
-    dialog { border: none; border-radius: 12px; padding: 1.5rem; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
-    dialog input { width: 100%; padding: .5rem; margin: .5rem 0 1rem; }
-    dialog button { margin-right: .5rem; padding: .5rem 1rem; cursor: pointer; }
-  </style>
+.track {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: .75rem;
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 1rem;
+  align-items: center;
+  transition: transform .2s, border-color .2s, background .2s;
+}
+.track:hover {
+  transform: translateY(-2px);
+  border-color: rgba(168,85,247,0.3);
+  background: var(--surface-2);
+}
+.track.playing {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.cover {
+  width: 64px; height: 64px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.5rem; color: white;
+  position: relative; overflow: hidden; cursor: pointer;
+  transition: transform .2s;
+}
+.cover:hover { transform: scale(1.05); }
+.cover::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.25), transparent 60%);
+}
+.cover .play-icon {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.4);
+  opacity: 0; transition: opacity .2s; font-size: 1.2rem;
+}
+.track:hover .cover .play-icon,
+.track.playing .cover .play-icon { opacity: 1; }
+
+.info { min-width: 0; }
+.title {
+  font-weight: 600; font-size: 1rem; margin: 0 0 .15rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.artist {
+  color: var(--muted); font-size: .875rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: .5rem;
+}
+.actions { display: flex; align-items: center; gap: .75rem; }
+.price-tag {
+  font-weight: 700; font-size: .95rem;
+  color: var(--accent); white-space: nowrap;
+}
+.buy-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white; border: none; border-radius: 999px;
+  padding: .55rem 1.1rem; font-weight: 600; font-size: .875rem;
+  cursor: pointer; white-space: nowrap;
+  transition: transform .15s, box-shadow .2s;
+}
+.buy-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(168,85,247,0.4);
+}
+
+.progress-wrap {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: .75rem;
+  height: 0; overflow: hidden;
+  transition: height .25s, margin .25s;
+}
+.track.playing .progress-wrap,
+.track.paused .progress-wrap {
+  height: 24px; margin-top: .25rem;
+}
+.progress {
+  flex: 1; height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px; cursor: pointer;
+  position: relative; overflow: hidden;
+}
+.progress-fill {
+  position: absolute; inset: 0 auto 0 0;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 3px;
+  transition: width .1s linear;
+}
+.time {
+  font-size: .75rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 80px; text-align: right;
+}
+
+.eq {
+  display: flex; gap: 2px; align-items: flex-end;
+  height: 14px; width: 16px;
+  opacity: 0; transition: opacity .2s;
+}
+.track.playing .eq { opacity: 1; }
+.eq span {
+  flex: 1; background: var(--accent); border-radius: 1px;
+  animation: eq 1s ease-in-out infinite;
+  transform-origin: bottom;
+}
+.eq span:nth-child(1) { animation-delay: 0s;   height: 60%; }
+.eq span:nth-child(2) { animation-delay: .15s; height: 100%; }
+.eq span:nth-child(3) { animation-delay: .3s;  height: 70%; }
+.eq span:nth-child(4) { animation-delay: .45s; height: 90%; }
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1);   }
+}
+
+.skeleton {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  height: 88px; margin-bottom: .75rem;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+
+.empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.empty h2 { color: var(--text); margin-bottom: .5rem; }
+.empty code {
+  background: var(--surface-2); padding: 2px 6px;
+  border-radius: 4px; color: var(--accent); font-size: .9em;
+}
+
+dialog {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  background: var(--surface);
+  color: var(--text);
+  max-width: 400px;
+  width: calc(100% - 2rem);
+}
+dialog::backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+dialog h2 { margin: 0 0 1rem; }
+dialog .summary {
+  background: var(--surface-2);
+  padding: .75rem 1rem; border-radius: 10px;
+  margin-bottom: 1rem; font-size: .9rem;
+}
+dialog .summary strong { color: var(--accent); }
+dialog label {
+  display: block; font-size: .875rem;
+  color: var(--muted); margin-bottom: .35rem;
+}
+dialog input {
+  width: 100%; padding: .7rem .9rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text);
+  font-size: 1rem; margin-bottom: 1rem;
+  font-family: inherit;
+}
+dialog input:focus { outline: none; border-color: var(--accent); }
+dialog .note { font-size: .8rem; color: var(--muted); margin: 0 0 1.25rem; }
+dialog .buttons { display: flex; gap: .5rem; }
+dialog button {
+  flex: 1; padding: .7rem 1rem;
+  border-radius: 10px; border: none;
+  font-weight: 600; cursor: pointer; font-size: .9rem;
+  font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: white;
+}
+.btn-secondary { background: var(--surface-2); color: var(--text); }
+
+@media (max-width: 560px) {
+  .track { grid-template-columns: 52px 1fr; gap: .75rem; }
+  .cover { width: 52px; height: 52px; font-size: 1.2rem; }
+  .actions { grid-column: 1 / -1; justify-content: space-between; }
+}
+</style>
 </head>
 <body>
-  <h1>🎵 Каталог треков</h1>
-  <div id="catalog"></div>
+<div class="container">
+  <header>
+    <h1>🎵 Музыкальный портал</h1>
+    <p>Слушайте превью бесплатно, покупайте полные треки</p>
+  </header>
+  <main id="catalog">
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+  </main>
+</div>
 
-  <dialog id="orderDialog">
-    <form id="orderForm">
-      <h2>Покупка трека</h2>
-      <p>Трек: <strong id="dTrack"></strong></p>
-      <p>Цена: <strong id="dPrice"></strong> ₽</p>
-      <label>Email для получения файла:
-        <input type="email" id="buyerEmail" required placeholder="you@example.com">
-      </label>
-      <p style="font-size:.9em;color:#666">После оплаты трек будет отправлен на этот адрес вручную в течение 24 часов.</p>
-      <button type="submit">Перейти к оплате</button>
-      <button type="button" id="dCancel">Отмена</button>
-    </form>
-  </dialog>
+<dialog id="orderDialog">
+  <form id="orderForm">
+    <h2>Оформление заказа</h2>
+    <div class="summary">
+      <div id="dTrack" style="font-weight:600;margin-bottom:.25rem"></div>
+      <div style="color:var(--muted);font-size:.85rem">К оплате: <strong id="dPrice"></strong></div>
+    </div>
+    <label for="buyerEmail">Email для получения файла</label>
+    <input type="email" id="buyerEmail" required placeholder="you@example.com">
+    <p class="note">После оплаты трек будет отправлен на этот адрес вручную в течение 24 часов.</p>
+    <div class="buttons">
+      <button type="button" class="btn-secondary" id="dCancel">Отмена</button>
+      <button type="submit" class="btn-primary">Перейти к оплате</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
-  // ==== НАСТРОЙКИ ====
-  const RECEIVER_WALLET = '410011234567890';
-  const FORMSPREE_URL   = 'https://formspree.io/f/xxxxxxx';
+// ============ НАСТРОЙКИ ============
+const CONFIG = {
+  owner: 'YOUR_USERNAME',
+  repo:  'YOUR_REPO',
+  folder: 'previews',
+  branch: 'main',
 
-  const TRACKS = [
-    { id: 'track_001', title: 'Название трека 1', artist: 'Исполнитель', price: 99,  preview: 'previews/track_001.mp3' },
-    { id: 'track_002', title: 'Название трека 2', artist: 'Исполнитель', price: 149, preview: 'previews/track_002.mp3' },
-    { id: 'track_003', title: 'Название трека 3', artist: 'Исполнитель', price: 199, preview: 'previews/track_003.mp3' }
-  ];
+  defaultPrice: 99,
+  formspreeUrl: 'https://formspree.io/f/xxxxxxx',
+  receiverWallet: '410011234567890',
 
-  // ==== Аудио ====
-  const audio = new Audio();      // единый аудиоэлемент
-  let currentBtn = null;          // кнопка текущего трека
-  let currentFill = null;         // прогресс-бар текущего трека
-  let currentTime = null;         // подпись времени текущего трека
+  // Опционально: если вы положите tracks.json — он имеет приоритет
+  tracksJsonUrl: 'tracks.json'
+};
 
-  function fmtTime(s) {
-    if (!isFinite(s) || s < 0) s = 0;
-    const m = Math.floor(s / 60);
-    const sec = Math.floor(s % 60).toString().padStart(2, '0');
-    return `${m}:${sec}`;
+// ============ КЭШ ============
+const CACHE_KEY = 'tracks_cache_v3';
+const CACHE_TTL = 60 * 60 * 1000; // 1 час
+
+// ============ УТИЛИТЫ ============
+function hashCode(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+function coverGradient(seed) {
+  const h = hashCode(seed);
+  const h1 = h % 360;
+  const h2 = (h1 + 50) % 360;
+  return `linear-gradient(135deg, hsl(${h1}, 70%, 45%), hsl(${h2}, 85%, 35%))`;
+}
+function parseFilename(filename) {
+  const base = filename.replace(/\.mp3$/i, '');
+  const parts = base.split(' - ').map(s => s.trim()).filter(Boolean);
+  let price = CONFIG.defaultPrice;
+  if (parts.length >= 3 && /^\d+$/.test(parts[parts.length - 1])) {
+    price = parseInt(parts.pop(), 10);
   }
-
-  function resetUI() {
-    if (currentBtn) currentBtn.textContent = '▶';
-    if (currentFill) currentFill.style.width = '0%';
-    if (currentTime) currentTime.textContent = '0:00 / 0:00';
-    currentBtn = currentFill = currentTime = null;
+  let artist = '', title = base;
+  if (parts.length >= 2) {
+    artist = parts[0];
+    title = parts.slice(1).join(' - ');
+  } else if (parts.length === 1) {
+    title = parts[0];
   }
+  const id = 't_' + hashCode(base).toString(36) + '_' + base.length.toString(36);
+  return { id, filename, artist, title, price };
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtTime(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
 
-  audio.addEventListener('timeupdate', () => {
-    if (!audio.duration || !currentFill) return;
-    const p = (audio.currentTime / audio.duration) * 100;
-    currentFill.style.width = p + '%';
-    currentTime.textContent = `${fmtTime(audio.currentTime)} / ${fmtTime(audio.duration)}`;
-  });
-
-  audio.addEventListener('ended', () => {
-    if (currentBtn) currentBtn.textContent = '▶';
-    if (currentFill) currentFill.style.width = '0%';
-    if (currentTime) currentTime.textContent = '0:00 / 0:00';
-  });
-
-  audio.addEventListener('error', () => {
-    resetUI();
-    alert('Не удалось загрузить превью. Проверьте, что файл существует по указанному пути.');
-  });
-
-  // ==== Каталог ====
-  const catalog = document.getElementById('catalog');
-  TRACKS.forEach(t => {
-    const el = document.createElement('div');
-    el.className = 'track';
-    el.innerHTML = `
-      <div class="track-head">
-        <div class="track-info">
-          <strong>${t.title}</strong>
-          <span>${t.artist}</span>
-        </div>
-        <div class="track-buy">
-          <div class="price">${t.price} ₽</div>
-          <button data-id="${t.id}">Купить</button>
-        </div>
-      </div>
-      <div class="player">
-        <button class="play-btn" aria-label="Прослушать">▶</button>
-        <div class="progress"><div class="progress-fill"></div></div>
-        <div class="time">0:00 / 0:00</div>
-      </div>
-      <div class="preview-tag">🎧 Превью — 45 секунд</div>
-    `;
-
-    const btn     = el.querySelector('.play-btn');
-    const fill    = el.querySelector('.progress-fill');
-    const bar     = el.querySelector('.progress');
-    const time    = el.querySelector('.time');
-    const buyBtn  = el.querySelector('.track-buy button');
-
-    btn.onclick = () => {
-      const sameTrack = audio.src.endsWith(t.preview);
-
-      if (sameTrack && !audio.paused) {
-        audio.pause();
-        btn.textContent = '▶';
-        return;
-      }
-
-      // Если другой трек — сбрасываем предыдущий UI
-      if (!sameTrack) {
-        resetUI();
-        audio.src = t.preview;
-        audio.load();
-      }
-
-      currentBtn = btn;
-      currentFill = fill;
-      currentTime = time;
-
-      audio.play().then(() => { btn.textContent = '❚❚'; })
-                  .catch(() => { btn.textContent = '▶'; });
-    };
-
-    bar.onclick = (e) => {
-      if (!audio.duration) return;
-      const rect = bar.getBoundingClientRect();
-      const p = (e.clientX - rect.left) / rect.width;
-      audio.currentTime = Math.max(0, Math.min(1, p)) * audio.duration;
-    };
-
-    buyBtn.onclick = () => openOrder(t);
-    catalog.appendChild(el);
-  });
-
-  // ==== Диалог покупки ====
-  const dialog = document.getElementById('orderDialog');
-  let current = null;
-
-  function openOrder(track) {
-    current = track;
-    document.getElementById('dTrack').textContent = track.title;
-    document.getElementById('dPrice').textContent = track.price;
-    document.getElementById('buyerEmail').value = '';
-    dialog.showModal();
-  }
-
-  document.getElementById('dCancel').onclick = () => dialog.close();
-
-  document.getElementById('orderForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('buyerEmail').value.trim();
-    if (!email) return;
-
-    const orderId = `${current.id}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-
-    try {
-      const r = await fetch(FORMSPREE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          _subject: `🛒 Новый заказ: ${current.title}`,
-          orderId, buyerEmail: email,
-          trackId: current.id, trackTitle: current.title,
-          trackArtist: current.artist, price: current.price
-        })
-      });
-      if (!r.ok) throw new Error();
-    } catch {
-      alert('Не удалось сохранить заказ. Попробуйте ещё раз.');
-      return;
+// ============ ЗАГРУЗКА ============
+async function loadTracks() {
+  // 1. Кэш
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const { ts, tracks } = JSON.parse(raw);
+      if (Date.now() - ts < CACHE_TTL && Array.isArray(tracks) && tracks.length) return tracks;
     }
+  } catch {}
 
-    localStorage.setItem('lastOrder', JSON.stringify({
-      orderId, trackTitle: current.title, email
-    }));
-
-    const payForm = document.createElement('form');
-    payForm.method = 'POST';
-    payForm.action = 'https://yoomoney.ru/quickpay/confirm';
-    const fields = {
-      receiver: RECEIVER_WALLET,
-      'quickpay-form': 'button',
-      sum: current.price.toFixed(2),
-      label: orderId,
-      successURL: location.origin + location.pathname.replace(/[^/]*$/, '') + 'success.html',
-      targets: `Трек: ${current.title} — ${current.artist}`
-    };
-    for (const [k,v] of Object.entries(fields)) {
-      const inp = document.createElement('input');
-      inp.type='hidden'; inp.name=k; inp.value=v;
-      payForm.appendChild(inp);
+  // 2. tracks.json (если есть — приоритет)
+  try {
+    const r = await fetch(CONFIG.tracksJsonUrl, { cache: 'no-store' });
+    if (r.ok) {
+      const list = await r.json();
+      if (Array.isArray(list) && list.length) {
+        const tracks = list.map(item => {
+          const parsed = parseFilename(item.filename);
+          return {
+            ...parsed, ...item,
+            preview: `${CONFIG.folder}/${encodeURIComponent(item.filename)}`
+          };
+        });
+        saveCache(tracks);
+        return tracks;
+      }
     }
-    document.body.appendChild(payForm);
-    payForm.submit();
+  } catch {}
+
+  // 3. GitHub API — авто-список файлов в папке
+  try {
+    const url = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.folder}?ref=${CONFIG.branch}`;
+    const r = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+    if (!r.ok) throw new Error('GitHub API ' + r.status);
+    const items = await r.json();
+    const mp3 = items.filter(it => it.type === 'file' && /\.mp3$/i.test(it.name));
+    const tracks = mp3
+      .map(it => {
+        const parsed = parseFilename(it.name);
+        return { ...parsed, preview: `${CONFIG.folder}/${encodeURIComponent(it.name)}` };
+      })
+      .sort((a, b) => a.filename.localeCompare(b.filename, 'ru'));
+    if (tracks.length) saveCache(tracks);
+    return tracks;
+  } catch (e) {
+    console.warn('Не удалось загрузить треки:', e);
+    return [];
+  }
+}
+function saveCache(tracks) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), tracks })); } catch {}
+}
+
+// ============ РЕНДЕР ============
+const catalog = document.getElementById('catalog');
+const audio = new Audio();
+let currentTrackEl = null;
+
+function renderTracks(tracks) {
+  catalog.innerHTML = '';
+  if (!tracks.length) {
+    catalog.innerHTML = `
+      <div class="empty">
+        <h2>Пока нет треков</h2>
+        <p>Добавьте MP3-файлы в папку <code>${CONFIG.folder}/</code> репозитория.</p>
+        <p style="font-size:.9em">Имя файла: <code>Артист - Название - Цена.mp3</code></p>
+      </div>`;
+    return;
+  }
+  tracks.forEach(t => catalog.appendChild(createTrackEl(t)));
+}
+
+function createTrackEl(track) {
+  const el = document.createElement('div');
+  el.className = 'track';
+  el.dataset.id = track.id;
+  const initial = (track.title || '?').trim().charAt(0).toUpperCase();
+
+  el.innerHTML = `
+    <div class="cover" style="background: ${coverGradient(track.title)}">
+      <span>${escapeHtml(initial)}</span>
+      <div class="play-icon">▶</div>
+    </div>
+    <div class="info">
+      <div class="title">${escapeHtml(track.title)}</div>
+      <div class="artist">
+        ${escapeHtml(track.artist || 'Неизвестный исполнитель')}
+        <span class="eq"><span></span><span></span><span></span><span></span></span>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="price-tag">${track.price} ₽</span>
+      <button class="buy-btn">Купить</button>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress"><div class="progress-fill"></div></div>
+      <div class="time">0:00 / 0:00</div>
+    </div>`;
+
+  el.querySelector('.cover').addEventListener('click', () => toggleTrack(track, el));
+  el.querySelector('.buy-btn').addEventListener('click', () => openOrder(track));
+
+  const bar = el.querySelector('.progress');
+  bar.addEventListener('click', (e) => {
+    if (!audio.duration || currentTrackEl !== el) return;
+    const rect = bar.getBoundingClientRect();
+    const p = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = p * audio.duration;
+  });
+  return el;
+}
+
+// ============ ПЛЕЕР ============
+function toggleTrack(track, el) {
+  const isSame = currentTrackEl === el;
+  if (isSame) {
+    if (audio.paused) {
+      audio.play();
+      el.classList.add('playing');
+      el.classList.remove('paused');
+    } else {
+      audio.pause();
+      el.classList.remove('playing');
+      el.classList.add('paused');
+    }
+    return;
+  }
+  if (currentTrackEl) {
+    currentTrackEl.classList.remove('playing', 'paused');
+    currentTrackEl.querySelector('.progress-fill').style.width = '0%';
+    currentTrackEl.querySelector('.time').textContent = '0:00 / 0:00';
+  }
+  currentTrackEl = el;
+  audio.src = track.preview;
+  audio.load();
+  audio.play()
+    .then(() => el.classList.add('playing'))
+    .catch(err => {
+      console.error(err);
+      alert('Не удалось запустить трек. Проверьте, что файл существует.');
+    });
+}
+
+audio.addEventListener('timeupdate', () => {
+  if (!currentTrackEl || !audio.duration) return;
+  const p = (audio.currentTime / audio.duration) * 100;
+  currentTrackEl.querySelector('.progress-fill').style.width = p + '%';
+  currentTrackEl.querySelector('.time').textContent =
+    `${fmtTime(audio.currentTime)} / ${fmtTime(audio.duration)}`;
+});
+audio.addEventListener('ended', () => {
+  if (!currentTrackEl) return;
+  currentTrackEl.classList.remove('playing');
+  currentTrackEl.classList.add('paused');
+  currentTrackEl.querySelector('.progress-fill').style.width = '0%';
+  currentTrackEl.querySelector('.time').textContent = '0:00 / 0:00';
+});
+
+// ============ ДИАЛОГ ============
+const dialog = document.getElementById('orderDialog');
+let currentOrderTrack = null;
+
+function openOrder(track) {
+  currentOrderTrack = track;
+  document.getElementById('dTrack').textContent = track.title;
+  document.getElementById('dPrice').textContent = track.price + ' ₽';
+  document.getElementById('buyerEmail').value = '';
+  dialog.showModal();
+}
+document.getElementById('dCancel').onclick = () => dialog.close();
+
+document.getElementById('orderForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('buyerEmail').value.trim();
+  if (!email || !currentOrderTrack) return;
+  const orderId = `${currentOrderTrack.id}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+
+  try {
+    const r = await fetch(CONFIG.formspreeUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        _subject: `🛒 Новый заказ: ${currentOrderTrack.title}`,
+        orderId, buyerEmail: email,
+        trackId: currentOrderTrack.id,
+        trackFilename: currentOrderTrack.filename,
+        trackTitle: currentOrderTrack.title,
+        trackArtist: currentOrderTrack.artist,
+        price: currentOrderTrack.price
+      })
+    });
+    if (!r.ok) throw new Error();
+  } catch {
+    alert('Не удалось сохранить заказ. Попробуйте ещё раз.');
+    return;
+  }
+  localStorage.setItem('lastOrder', JSON.stringify({
+    orderId, trackTitle: currentOrderTrack.title, email
+  }));
+
+  const successUrl = location.origin + location.pathname.replace(/[^/]*$/, '') + 'success.html';
+  const payForm = document.createElement('form');
+  payForm.method = 'POST';
+  payForm.action = 'https://yoomoney.ru/quickpay/confirm';
+  const fields = {
+    receiver: CONFIG.receiverWallet,
+    'quickpay-form': 'button',
+    sum: currentOrderTrack.price.toFixed(2),
+    label: orderId,
+    successURL: successUrl,
+    targets: `Трек: ${currentOrderTrack.title} — ${currentOrderTrack.artist}`
   };
+  for (const [k, v] of Object.entries(fields)) {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = k; inp.value = v;
+    payForm.appendChild(inp);
+  }
+  document.body.appendChild(payForm);
+  payForm.submit();
+};
+
+// ============ СТАРТ ============
+(async () => {
+  const tracks = await loadTracks();
+  renderTracks(tracks);
+})();
 </script>
 </body>
 </html>
